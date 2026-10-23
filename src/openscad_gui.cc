@@ -301,13 +301,31 @@ int gui(std::vector<std::string>& inputFiles, const std::filesystem::path& origi
   }
 #endif
 
+  const auto openMainWindow = [&original_path](const std::vector<std::string>& files) {
+    QStringList inputFilesList;
+    for (const auto& infile : files) {
+      inputFilesList.append(assemblePath(original_path, infile));
+    }
+    new MainWindow(inputFilesList);
+  };
+
   if (showLauncher) {
-    LaunchingScreen launcher;
-    if (launcher.exec() == QDialog::Accepted) {
-      if (launcher.isForceShowEditor()) {
+    // The launcher must not run in a nested modal event loop (QDialog::exec()) before
+    // app.exec(): macOS does not deliver the "open documents" Apple event during such a
+    // modal session, so files double-clicked in Finder would never reach the application.
+    const bool quitOnLastWindowClosed = app.quitOnLastWindowClosed();
+    app.setQuitOnLastWindowClosed(false);
+    auto launcher = new LaunchingScreen();
+    launcher->setAttribute(Qt::WA_DeleteOnClose);
+    QObject::connect(launcher, &QDialog::finished, &app, [&, launcher](int result) {
+      if (result != QDialog::Accepted) {
+        QApplication::quit();
+        return;
+      }
+      if (launcher->isForceShowEditor()) {
         settings.setValue("view/hideEditor", false);
       }
-      const QStringList files = launcher.selectedFiles();
+      const QStringList files = launcher->selectedFiles();
       // If nothing is selected in the launching screen, leave
       // the "" dummy in inputFiles to open an empty MainWindow.
       if (!files.empty()) {
@@ -316,16 +334,14 @@ int gui(std::vector<std::string>& inputFiles, const std::filesystem::path& origi
           inputFiles.push_back(f.toStdString());
         }
       }
-    } else {
-      return 0;
-    }
+      openMainWindow(inputFiles);
+      app.setQuitOnLastWindowClosed(quitOnLastWindowClosed);
+    });
+    launcher->show();
+  } else {
+    openMainWindow(inputFiles);
   }
 
-  QStringList inputFilesList;
-  for (const auto& infile : inputFiles) {
-    inputFilesList.append(assemblePath(original_path, infile));
-  }
-  new MainWindow(inputFilesList);
   QObject::connect(&app, &QCoreApplication::aboutToQuit, []() {
     QSettingsCached{}.release();
 #ifdef Q_OS_MACOS

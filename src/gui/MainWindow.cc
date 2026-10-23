@@ -4132,6 +4132,8 @@ void MainWindow::changeEvent(QEvent *event)
 {
   if (event->type() == QEvent::ThemeChange) {
     setGlobalTheme();
+  } else if (event->type() == QEvent::ActivationChange && isActiveWindow()) {
+    scadApp->windowManager.setLastActive(this);
   }
   QMainWindow::changeEvent(event);
 }

@@ -78,16 +78,15 @@ bool OpenSCADApp::notify(QObject *object, QEvent *event)
  */
 void OpenSCADApp::requestOpenFile(const QString& filename)
 {
-  for (auto win : this->windowManager.getWindows()) {
-    // if we have an empty open window, use that one
-    if (win->isEmpty()) {
-      win->tabManager->createTab(filename);
-      return;
-    }
+  MainWindow *win = this->windowManager.getLastActive();
+  if (!win) {
+    new MainWindow(QStringList(filename));
+    return;
   }
 
-  // ..otherwise, create a new one
-  new MainWindow(QStringList(filename));
+  win->tabManager->open(filename);
+  win->raise();
+  win->activateWindow();
 }
 
 void OpenSCADApp::showFontCacheDialog()

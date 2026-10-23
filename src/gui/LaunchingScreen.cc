@@ -10,6 +10,7 @@
 #include <QWidget>
 #include <string>
 
+#include "gui/OpenSCADApp.h"
 #include "gui/QSettingsCached.h"
 #include "gui/UIUtils.h"
 #include "ui_LaunchingScreen.h"
@@ -26,9 +27,12 @@ LaunchingScreen *LaunchingScreen::getDialog()
 // when the user opens files from Finder.
 void LaunchingScreen::openFile(const QString& filename)
 {
-  QVariant v(filename);
-  this->checkOpen(v, false);
-  this->done(QDialog::Accepted);
+  // An earlier file of the same Finder request may already have closed the launcher.
+  if (!isVisible()) {
+    scadApp->requestOpenFile(filename);
+    return;
+  }
+  this->checkOpen(QVariant(filename), false);
 }
 
 LaunchingScreen::LaunchingScreen(QWidget *parent) : QDialog(parent)
